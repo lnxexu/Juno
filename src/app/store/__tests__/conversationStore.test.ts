@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { api, type Conversation, type Message } from '../../services/api';
-import { useConversationStore } from '../conversationStore';
+import {
+  replaceOptimisticMessageWithServerMessage,
+  sortConversationMessages,
+  type ConversationMessage,
+  useConversationStore,
+} from '../conversationStore';
 
 const seededConversation: Conversation = {
   id: 1,
@@ -138,5 +143,91 @@ describe('useConversationStore message delivery', () => {
     expect(state.messages[0].deliveryStatus).toBe('sent');
     expect(state.messages.some((msg) => msg.deliveryStatus === 'failed')).toBe(false);
     expect(state.messages.some((msg) => msg.deliveryStatus === 'pending')).toBe(false);
+  });
+
+  it('keeps deterministic ordering and dedupes temp-to-server replacements when resolution is out of order', () => {
+    const optimisticFirst: ConversationMessage = {
+      id: -101,
+      clientRequestId: 'temp-1',
+      conversationId: seededConversation.id,
+      sender: 'agent',
+      text: 'First optimistic',
+      timestamp: '2026-04-19T09:00:00.000Z',
+      deliveryStatus: 'pending',
+      originalText: 'First optimistic',
+    };
+
+    const optimisticSecond: ConversationMessage = {
+      id: -102,
+      clientRequestId: 'temp-2',
+      conversationId: seededConversation.id,
+      sender: 'agent',
+      text: 'Second optimistic',
+      timestamp: '2026-04-19T09:00:01.000Z',
+      deliveryStatus: 'pending',
+      originalText: 'Second optimistic',
+    };
+
+    const preExistingServerDuplicateForSecond: ConversationMessage = {
+      id: 202,
+      conversationId: seededConversation.id,
+      sender: 'agent',
+      text: 'Second from server',
+      timestamp: '2026-04-19T09:00:02.000Z',
+      deliveryStatus: 'sent',
+    };
+
+    const resolvedFirst: ConversationMessage = {
+      id: 201,
+      clientRequestId: 'temp-1',
+      conversationId: seededConversation.id,
+      sender: 'agent',
+      text: 'First from server',
+      timestamp: '2026-04-19T09:00:03.000Z',
+      deliveryStatus: 'sent',
+    };
+
+    const resolvedSecond: ConversationMessage = {
+      id: 202,
+      clientRequestId: 'temp-2',
+      conversationId: seededConversation.id,
+      sender: 'agent',
+      text: 'Second from server',
+      timestamp: '2026-04-19T09:00:04.000Z',
+      deliveryStatus: 'sent',
+    };
+
+    const initialMessages = sortConversationMessages([
+      optimisticFirst,
+      optimisticSecond,
+      preExistingServerDuplicateForSecond,
+    ]);
+
+    const outOfOrderResolvedSecond = replaceOptimisticMessageWithServerMessage(
+      initialMessages,
+      optimisticSecond.id,
+      resolvedSecond,
+    );
+    const outOfOrderFinal = replaceOptimisticMessageWithServerMessage(
+      outOfOrderResolvedSecond,
+      optimisticFirst.id,
+      resolvedFirst,
+    );
+
+    const inOrderResolvedFirst = replaceOptimisticMessageWithServerMessage(
+      initialMessages,
+      optimisticFirst.id,
+      resolvedFirst,
+    );
+    const inOrderFinal = replaceOptimisticMessageWithServerMessage(
+      inOrderResolvedFirst,
+      optimisticSecond.id,
+      resolvedSecond,
+    );
+
+    expect(outOfOrderFinal).toEqual(inOrderFinal);
+    expect(outOfOrderFinal).toHaveLength(2);
+    expect(outOfOrderFinal.map((message) => message.id)).toEqual([201, 202]);
+    expect(outOfOrderFinal.map((message) => message.clientRequestId)).toEqual(['temp-1', 'temp-2']);
   });
 });

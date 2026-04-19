@@ -7,12 +7,76 @@ export interface ConversationMessage extends Message {
   deliveryStatus?: MessageDeliveryStatus;
   originalText?: string;
   error?: string;
+  clientRequestId?: string;
 }
 
 const SEND_MESSAGE_ERROR_PREFIX = 'Failed to send message.';
 const OFFLINE_SEND_MESSAGE = 'You are offline. Please check your internet connection and try again.';
 let nextOptimisticMessageId = -1;
+let nextClientRequestId = 1;
 let sendMessageInFlight = false;
+
+const buildClientRequestId = () => `temp-${nextClientRequestId++}`;
+
+const parseTimestampToNumber = (timestamp: string) => {
+  const parsedTimestamp = Date.parse(timestamp);
+  return Number.isNaN(parsedTimestamp) ? 0 : parsedTimestamp;
+};
+
+export const getConversationMessageStableKey = (message: ConversationMessage) => (
+  message.clientRequestId ?? `server-${message.id}`
+);
+
+export const sortConversationMessages = (messages: ConversationMessage[]) => (
+  [...messages].sort((left, right) => {
+    const timestampDifference = parseTimestampToNumber(left.timestamp) - parseTimestampToNumber(right.timestamp);
+    if (timestampDifference !== 0) {
+      return timestampDifference;
+    }
+
+    const stableKeyDifference = getConversationMessageStableKey(left)
+      .localeCompare(getConversationMessageStableKey(right));
+    if (stableKeyDifference !== 0) {
+      return stableKeyDifference;
+    }
+
+    return left.id - right.id;
+  })
+);
+
+const normalizeLoadedMessages = (messages: Message[]) => {
+  const dedupedByServerId = new Map<number, ConversationMessage>();
+
+  for (const message of messages) {
+    dedupedByServerId.set(message.id, message);
+  }
+
+  return sortConversationMessages(Array.from(dedupedByServerId.values()));
+};
+
+export const replaceOptimisticMessageWithServerMessage = (
+  messages: ConversationMessage[],
+  optimisticMessageId: number,
+  serverMessage: ConversationMessage,
+) => {
+  const filteredMessages = messages.filter((message) => {
+    if (message.id === optimisticMessageId) {
+      return false;
+    }
+
+    if (serverMessage.clientRequestId && message.clientRequestId === serverMessage.clientRequestId) {
+      return false;
+    }
+
+    if (serverMessage.id > 0 && message.id > 0 && message.id === serverMessage.id) {
+      return false;
+    }
+
+    return true;
+  });
+
+  return sortConversationMessages([...filteredMessages, serverMessage]);
+};
 
 const isNetworkOnline = () => {
   if (typeof navigator === 'undefined') {
@@ -67,7 +131,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
         return;
       }
 
-      set({ messages, isLoading: false });
+      set({ messages: normalizeLoadedMessages(messages), isLoading: false });
       await api.conversations.markAsRead(id);
 
       if (get().selectedConversationId !== id) {
@@ -99,6 +163,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     const { aiEnabled } = get();
     const optimisticMessage: ConversationMessage = {
       id: nextOptimisticMessageId--,
+      clientRequestId: buildClientRequestId(),
       conversationId,
       sender: aiEnabled ? 'ai' : 'agent',
       text: aiEnabled ? `AI Response: ${trimmedText}` : trimmedText,
@@ -111,7 +176,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     set((state) => ({
       isSending: true,
       error: null,
-      messages: [...state.messages, optimisticMessage],
+      messages: sortConversationMessages([...state.messages, optimisticMessage]),
     }));
 
     try {
@@ -119,22 +184,28 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
         const errorMessage = `${SEND_MESSAGE_ERROR_PREFIX} ${OFFLINE_SEND_MESSAGE}`;
 
         set((state) => ({
-          messages: state.messages.map((msg) =>
+          messages: sortConversationMessages(state.messages.map((msg) =>
             msg.id === optimisticMessage.id
               ? { ...msg, deliveryStatus: 'failed' as const, error: errorMessage }
               : msg
-          ),
+          )),
           error: errorMessage,
         }));
         return false;
       }
 
       const message = await api.conversations.sendMessage(conversationId, trimmedText, aiEnabled);
+      const resolvedMessage: ConversationMessage = {
+        ...message,
+        deliveryStatus: 'sent',
+        clientRequestId: optimisticMessage.clientRequestId,
+      };
+
       set((state) => ({
-        messages: state.messages.map((msg) =>
-          msg.id === optimisticMessage.id
-            ? { ...message, deliveryStatus: 'sent' as const }
-            : msg
+        messages: replaceOptimisticMessageWithServerMessage(
+          state.messages,
+          optimisticMessage.id,
+          resolvedMessage,
         ),
         conversations: state.conversations.map(c =>
           c.id === conversationId
@@ -150,11 +221,11 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
         : SEND_MESSAGE_ERROR_PREFIX;
 
       set((state) => ({
-        messages: state.messages.map((msg) =>
+        messages: sortConversationMessages(state.messages.map((msg) =>
           msg.id === optimisticMessage.id
             ? { ...msg, deliveryStatus: 'failed' as const, error: errorMessage }
             : msg
-        ),
+        )),
         error: errorMessage,
       }));
       return false;
@@ -184,22 +255,22 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     set((state) => ({
       isSending: true,
       error: null,
-      messages: state.messages.map((msg) =>
+      messages: sortConversationMessages(state.messages.map((msg) =>
         msg.id === messageId
           ? { ...msg, deliveryStatus: 'pending' as const, error: undefined }
           : msg
-      ),
+      )),
     }));
 
     if (!isNetworkOnline()) {
       const errorMessage = `${SEND_MESSAGE_ERROR_PREFIX} ${OFFLINE_SEND_MESSAGE}`;
 
       set((state) => ({
-        messages: state.messages.map((msg) =>
+        messages: sortConversationMessages(state.messages.map((msg) =>
           msg.id === messageId
             ? { ...msg, deliveryStatus: 'failed' as const, error: errorMessage }
             : msg
-        ),
+        )),
         error: errorMessage,
         isSending: false,
       }));
@@ -208,11 +279,17 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
 
     try {
       const message = await api.conversations.sendMessage(conversationId, messageText, useAI);
+      const resolvedMessage: ConversationMessage = {
+        ...message,
+        deliveryStatus: 'sent',
+        clientRequestId: failedMessage.clientRequestId ?? buildClientRequestId(),
+      };
+
       set((state) => ({
-        messages: state.messages.map((msg) =>
-          msg.id === messageId
-            ? { ...message, deliveryStatus: 'sent' as const }
-            : msg
+        messages: replaceOptimisticMessageWithServerMessage(
+          state.messages,
+          messageId,
+          resolvedMessage,
         ),
         conversations: state.conversations.map((c) =>
           c.id === conversationId
@@ -229,11 +306,11 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
         : SEND_MESSAGE_ERROR_PREFIX;
 
       set((state) => ({
-        messages: state.messages.map((msg) =>
+        messages: sortConversationMessages(state.messages.map((msg) =>
           msg.id === messageId
             ? { ...msg, deliveryStatus: 'failed' as const, error: errorMessage }
             : msg
-        ),
+        )),
         error: errorMessage,
         isSending: false,
       }));
