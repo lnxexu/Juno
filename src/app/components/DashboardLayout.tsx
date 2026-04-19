@@ -9,13 +9,37 @@ import {
   Menu,
   X
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuthStore } from '../store/authStore';
 
 export function DashboardLayout() {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isOnline, setIsOnline] = useState(() => {
+    if (typeof navigator === 'undefined') {
+      return true;
+    }
+
+    return navigator.onLine;
+  });
   const user = useAuthStore((state) => state.user);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -117,9 +141,17 @@ export function DashboardLayout() {
           </button>
           <div className="flex-1" />
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 rounded-full text-sm">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-              AI Online
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${
+              isOnline
+                ? 'bg-green-50 text-green-700'
+                : 'bg-red-50 text-red-700'
+            }`}>
+              <div className={`w-2 h-2 rounded-full ${
+                isOnline
+                  ? 'bg-green-500 animate-pulse'
+                  : 'bg-red-500'
+              }`} />
+              {isOnline ? 'AI Online' : 'AI Offline'}
             </div>
           </div>
         </header>
