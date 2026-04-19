@@ -12,6 +12,7 @@ export interface ConversationMessage extends Message {
 const SEND_MESSAGE_ERROR_PREFIX = 'Failed to send message.';
 const OFFLINE_SEND_MESSAGE = 'You are offline. Please check your internet connection and try again.';
 let nextOptimisticMessageId = -1;
+let sendMessageInFlight = false;
 
 const isNetworkOnline = () => {
   if (typeof navigator === 'undefined') {
@@ -84,14 +85,16 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
   },
 
   sendMessage: async (conversationId, text) => {
-    if (get().isSending) {
-      return false;
-    }
-
     const trimmedText = text.trim();
     if (!trimmedText) {
       return false;
     }
+
+    if (sendMessageInFlight || get().isSending) {
+      return false;
+    }
+
+    sendMessageInFlight = true;
 
     const { aiEnabled } = get();
     const optimisticMessage: ConversationMessage = {
@@ -111,22 +114,21 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
       messages: [...state.messages, optimisticMessage],
     }));
 
-    if (!isNetworkOnline()) {
-      const errorMessage = `${SEND_MESSAGE_ERROR_PREFIX} ${OFFLINE_SEND_MESSAGE}`;
-
-      set((state) => ({
-        messages: state.messages.map((msg) =>
-          msg.id === optimisticMessage.id
-            ? { ...msg, deliveryStatus: 'failed' as const, error: errorMessage }
-            : msg
-        ),
-        error: errorMessage,
-        isSending: false,
-      }));
-      return false;
-    }
-
     try {
+      if (!isNetworkOnline()) {
+        const errorMessage = `${SEND_MESSAGE_ERROR_PREFIX} ${OFFLINE_SEND_MESSAGE}`;
+
+        set((state) => ({
+          messages: state.messages.map((msg) =>
+            msg.id === optimisticMessage.id
+              ? { ...msg, deliveryStatus: 'failed' as const, error: errorMessage }
+              : msg
+          ),
+          error: errorMessage,
+        }));
+        return false;
+      }
+
       const message = await api.conversations.sendMessage(conversationId, trimmedText, aiEnabled);
       set((state) => ({
         messages: state.messages.map((msg) =>
@@ -139,7 +141,6 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
             ? { ...c, lastMessage: trimmedText, timestamp: message.timestamp }
             : c
         ),
-        isSending: false,
       }));
       return true;
     } catch (error) {
@@ -155,9 +156,11 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
             : msg
         ),
         error: errorMessage,
-        isSending: false,
       }));
       return false;
+    } finally {
+      sendMessageInFlight = false;
+      set({ isSending: false });
     }
   },
 
