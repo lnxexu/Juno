@@ -1,0 +1,7 @@
+node_modules
+*.log
+*.env
+dist
+guidelines
+attributions.md
+Integration_guide.md
