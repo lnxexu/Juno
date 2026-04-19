@@ -60,6 +60,50 @@ describe('useConversationStore message delivery', () => {
     expect(state.messages.some((msg) => msg.deliveryStatus === 'pending')).toBe(false);
   });
 
+  it('prevents duplicate rapid submits while a message is in flight', async () => {
+    const deliveredMessage: Message = {
+      id: 102,
+      conversationId: seededConversation.id,
+      sender: 'agent',
+      text: 'Hello there',
+      timestamp: '2026-04-19T09:15:00.000Z',
+    };
+
+    let resolveSend!: (message: Message) => void;
+    const sendSpy = vi.spyOn(api.conversations, 'sendMessage').mockReturnValueOnce(
+      new Promise<Message>((resolve) => {
+        resolveSend = resolve;
+      })
+    );
+
+    const firstSendPromise = useConversationStore
+      .getState()
+      .sendMessage(seededConversation.id, 'Hello there');
+
+    const secondSendResult = await useConversationStore
+      .getState()
+      .sendMessage(seededConversation.id, 'Hello there');
+
+    expect(secondSendResult).toBe(false);
+    expect(sendSpy).toHaveBeenCalledTimes(1);
+
+    const pendingState = useConversationStore.getState();
+    expect(pendingState.isSending).toBe(true);
+    expect(pendingState.messages).toHaveLength(1);
+    expect(pendingState.messages[0].deliveryStatus).toBe('pending');
+
+    resolveSend(deliveredMessage);
+    const firstSendResult = await firstSendPromise;
+
+    expect(firstSendResult).toBe(true);
+
+    const finalState = useConversationStore.getState();
+    expect(finalState.isSending).toBe(false);
+    expect(finalState.messages).toHaveLength(1);
+    expect(finalState.messages[0].id).toBe(deliveredMessage.id);
+    expect(finalState.messages[0].deliveryStatus).toBe('sent');
+  });
+
   it('retries a failed message and replaces it with one sent message only', async () => {
     const deliveredMessage: Message = {
       id: 101,

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Search, Send, Facebook, Instagram, Globe, MoreVertical, Tag, Mail, Phone, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import { useConversationStore } from '../store/conversationStore';
@@ -21,6 +21,8 @@ export function ConversationsPage() {
 
   const [messageInput, setMessageInput] = useState('');
   const [retryingMessageId, setRetryingMessageId] = useState<number | null>(null);
+  const [isSubmittingMessage, setIsSubmittingMessage] = useState(false);
+  const submitLockRef = useRef(false);
   const [isOnline, setIsOnline] = useState(() => {
     if (typeof navigator === 'undefined') {
       return true;
@@ -63,6 +65,7 @@ export function ConversationsPage() {
   }, [error]);
 
   const selectedConv = conversations.find(c => c.id === selectedConversationId);
+  const isSendingMessage = isSending || isSubmittingMessage;
 
   const customerInfo = {
     name: selectedConv?.customerName || '',
@@ -109,11 +112,20 @@ export function ConversationsPage() {
   };
 
   const handleSendMessage = async () => {
-    if (!messageInput.trim() || !selectedConversationId || isSending) return;
+    const trimmedInput = messageInput.trim();
+    if (!trimmedInput || !selectedConversationId || isSending || submitLockRef.current) return;
 
-    const sent = await sendMessage(selectedConversationId, messageInput);
-    if (sent) {
-      setMessageInput('');
+    submitLockRef.current = true;
+    setIsSubmittingMessage(true);
+
+    try {
+      const sent = await sendMessage(selectedConversationId, trimmedInput);
+      if (sent) {
+        setMessageInput('');
+      }
+    } finally {
+      submitLockRef.current = false;
+      setIsSubmittingMessage(false);
     }
   };
 
@@ -286,18 +298,23 @@ export function ConversationsPage() {
                   type="text"
                   value={messageInput}
                   onChange={(e) => setMessageInput(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      void handleSendMessage();
+                    }
+                  }}
                   placeholder="Type your message..."
-                  disabled={isSending}
+                  disabled={isSendingMessage}
                   className="flex-1 px-4 py-3 bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                 />
                 <button
-                  onClick={handleSendMessage}
-                  disabled={isSending || !messageInput.trim()}
+                  onClick={() => void handleSendMessage()}
+                  disabled={isSendingMessage || !messageInput.trim()}
                   className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg transition-shadow flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Send className="w-4 h-4" />
-                  {isSending ? 'Sending...' : 'Send'}
+                  {isSendingMessage ? 'Sending...' : 'Send'}
                 </button>
               </div>
             </div>
