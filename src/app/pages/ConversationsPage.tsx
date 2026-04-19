@@ -15,14 +15,40 @@ export function ConversationsPage() {
     fetchConversations,
     selectConversation,
     sendMessage,
+    retryMessage,
     toggleAI,
   } = useConversationStore();
 
   const [messageInput, setMessageInput] = useState('');
+  const [retryingMessageId, setRetryingMessageId] = useState<number | null>(null);
+  const [isOnline, setIsOnline] = useState(() => {
+    if (typeof navigator === 'undefined') {
+      return true;
+    }
+
+    return navigator.onLine;
+  });
 
   useEffect(() => {
     fetchConversations();
   }, [fetchConversations]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   useEffect(() => {
     if (conversations.length > 0 && !selectedConversationId) {
@@ -85,8 +111,21 @@ export function ConversationsPage() {
   const handleSendMessage = async () => {
     if (!messageInput.trim() || !selectedConversationId || isSending) return;
 
-    await sendMessage(selectedConversationId, messageInput);
-    setMessageInput('');
+    const sent = await sendMessage(selectedConversationId, messageInput);
+    if (sent) {
+      setMessageInput('');
+    }
+  };
+
+  const handleRetryMessage = async (messageId: number) => {
+    if (!selectedConversationId || isSending) return;
+
+    setRetryingMessageId(messageId);
+    try {
+      await retryMessage(selectedConversationId, messageId);
+    } finally {
+      setRetryingMessageId(null);
+    }
   };
 
   return (
@@ -176,8 +215,13 @@ export function ConversationsPage() {
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              {!isOnline && (
+                <div className="mb-4 px-4 py-3 rounded-xl border border-red-200 bg-red-50 text-red-700 text-sm">
+                  You are offline. Messages cannot be delivered until your connection is restored.
+                </div>
+              )}
               {messages.map((msg) => (
-                <div key={msg.id} className={`flex ${msg.sender === 'customer' ? 'justify-start' : 'justify-end'}`}>
+                <div key={`${msg.id}-${msg.timestamp}`} className={`flex ${msg.sender === 'customer' ? 'justify-start' : 'justify-end'}`}>
                   <div className={`max-w-md ${msg.sender === 'customer' ? 'order-2' : 'order-1'}`}>
                     {msg.aiGenerated && (
                       <div className="text-xs text-purple-600 mb-1 flex items-center gap-1 justify-end">
@@ -185,14 +229,32 @@ export function ConversationsPage() {
                       </div>
                     )}
                     <div className={`px-4 py-3 rounded-2xl ${
-                      msg.sender === 'customer'
+                      msg.deliveryStatus === 'failed'
+                        ? 'bg-red-50 border border-red-200 text-red-900'
+                        : msg.sender === 'customer'
                         ? 'bg-white border border-gray-200'
                         : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
                     }`}>
                       <p className="text-sm">{msg.text}</p>
                     </div>
-                    <div className={`text-xs text-gray-500 mt-1 ${msg.sender !== 'customer' ? 'text-right' : ''}`}>
-                      {formatTime(msg.timestamp)}
+                    <div className={`text-xs text-gray-500 mt-1 flex items-center gap-2 ${msg.sender !== 'customer' ? 'justify-end' : ''}`}>
+                      <span>{formatTime(msg.timestamp)}</span>
+                      {msg.deliveryStatus === 'pending' && (
+                        <span>{retryingMessageId === msg.id ? 'Retrying...' : 'Sending...'}</span>
+                      )}
+                      {msg.deliveryStatus === 'failed' && selectedConversationId && (
+                        <>
+                          <span className="text-red-600">Failed to send</span>
+                          <button
+                            type="button"
+                            onClick={() => void handleRetryMessage(msg.id)}
+                            disabled={isSending}
+                            className="text-red-600 hover:text-red-700 underline disabled:opacity-50"
+                          >
+                            Retry
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
