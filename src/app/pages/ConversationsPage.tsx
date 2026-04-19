@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Search, Send, Facebook, Instagram, Globe, MoreVertical, Tag, Mail, Phone, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
-import { useConversationStore } from '../store/conversationStore';
+import { getConversationMessageStableKey, useConversationStore } from '../store/conversationStore';
 
 export function ConversationsPage() {
   const {
@@ -233,7 +233,7 @@ export function ConversationsPage() {
                 </div>
               )}
               {messages.map((msg) => (
-                <div key={`${msg.id}-${msg.timestamp}`} className={`flex ${msg.sender === 'customer' ? 'justify-start' : 'justify-end'}`}>
+                <div key={getConversationMessageStableKey(msg)} className={`flex ${msg.sender === 'customer' ? 'justify-start' : 'justify-end'}`}>
                   <div className={`max-w-md ${msg.sender === 'customer' ? 'order-2' : 'order-1'}`}>
                     {msg.aiGenerated && (
                       <div className="text-xs text-purple-600 mb-1 flex items-center gap-1 justify-end">
