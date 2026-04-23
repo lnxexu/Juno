@@ -21,6 +21,91 @@ afterEach(() => {
 });
 
 describe('api service integration client', () => {
+  it('creates a new account, stores JWT, and returns the signed-up user', async () => {
+    vi.stubEnv('VITE_API_URL', 'https://api.example.com');
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse({
+      token: 'jwt-token-123',
+      user: {
+        id: '2',
+        email: 'new@example.com',
+        name: 'New User',
+        companyName: 'New Co',
+        plan: 'starter',
+        createdAt: '2026-04-21T00:00:00.000Z',
+      },
+    }, { status: 201 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { api } = await importApiModule();
+    const user = await api.auth.signup({
+      email: 'new@example.com',
+      password: 'StrongPass123!',
+      name: 'New User',
+      companyName: 'New Co',
+      plan: 'starter',
+    });
+
+    expect(user.email).toBe('new@example.com');
+    expect(localStorage.getItem('saas.auth.token')).toBe('jwt-token-123');
+
+    const requestOptions = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(requestOptions.method).toBe('POST');
+    expect(requestOptions.body).toBe(JSON.stringify({
+      email: 'new@example.com',
+      password: 'StrongPass123!',
+      name: 'New User',
+      companyName: 'New Co',
+      plan: 'starter',
+    }));
+  });
+
+  it('returns clear duplicate-email error messages for signup', async () => {
+    vi.stubEnv('VITE_API_URL', 'https://api.example.com');
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse(
+      { message: 'Email already in use.', code: 'EMAIL_ALREADY_EXISTS' },
+      { status: 409 },
+    ));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { api } = await importApiModule();
+    await expect(api.auth.signup({
+      email: 'duplicate@example.com',
+      password: 'StrongPass123!',
+      name: 'Duplicate User',
+      companyName: 'Duplicate Co',
+      plan: 'starter',
+    })).rejects.toThrow('Email already in use.');
+  });
+
+  it('normalizes password validation errors from signup endpoint', async () => {
+    vi.stubEnv('VITE_API_URL', 'https://api.example.com');
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse(
+      {
+        message: [
+          'Password must be at least 8 characters long.',
+          'Password must contain at least one special character.',
+        ],
+        error: 'Validation failed.',
+      },
+      { status: 400 },
+    ));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { api } = await importApiModule();
+    await expect(api.auth.signup({
+      email: 'invalid@example.com',
+      password: 'weakpass',
+      name: 'Invalid User',
+      companyName: 'Invalid Co',
+      plan: 'starter',
+    })).rejects.toThrow(
+      'Password must be at least 8 characters long., Password must contain at least one special character.',
+    );
+  });
+
   it('uses configured API base URL and auth token header', async () => {
     vi.stubEnv('VITE_API_URL', 'https://api.example.com/v1');
     localStorage.setItem('saas.auth.token', 'token-123');

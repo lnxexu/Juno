@@ -40,7 +40,7 @@ export function ProtectedRoute() {
   }
 
   if (!user) {
-    return <Navigate to="/" replace state={{ from: location.pathname }} />;
+    return <Navigate to="/signup" replace state={{ from: location.pathname }} />;
   }
 
   return <Outlet />;

@@ -40,12 +40,12 @@
 Frontend:
 
 ```bash
-npm run test
-npm run build
+yarn test
+yarn build
 ```
 
 Set environment before build for production validation:
 
 ```bash
-VITE_API_URL=https://api.your-domain.com/api npm run build
+VITE_API_URL=https://api.your-domain.com/api yarn build
 ```

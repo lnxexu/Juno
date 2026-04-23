@@ -16,8 +16,8 @@ export function LandingPage() {
           <div className="flex items-center gap-6">
             <a href="#features" className="text-sm text-gray-600 hover:text-gray-900">Features</a>
             <a href="#pricing" className="text-sm text-gray-600 hover:text-gray-900">Pricing</a>
-            <Link to="/dashboard" className="text-sm text-blue-600 hover:text-blue-700">Sign In</Link>
-            <Link to="/dashboard" className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg text-sm hover:shadow-lg transition-shadow">
+            <Link to="/signup" className="text-sm text-blue-600 hover:text-blue-700">Sign Up</Link>
+            <Link to="/signup" className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg text-sm hover:shadow-lg transition-shadow">
               Start Free Trial
             </Link>
           </div>
@@ -36,7 +36,7 @@ export function LandingPage() {
           Save time, increase sales, and never miss a customer again. Perfect for small and medium businesses looking to automate Facebook, Instagram, and web chat.
         </p>
         <div className="flex items-center justify-center gap-4">
-          <Link to="/dashboard" className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-xl transition-shadow flex items-center gap-2">
+          <Link to="/signup" className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-xl transition-shadow flex items-center gap-2">
             Start Free Trial <ArrowRight className="w-4 h-4" />
           </Link>
           <button className="px-8 py-4 border-2 border-gray-300 rounded-lg hover:border-gray-400 transition-colors flex items-center gap-2">
@@ -147,7 +147,7 @@ export function LandingPage() {
               <li className="flex items-center gap-2"><CheckCircle2 className="w-5 h-5 text-green-600" /> AI auto-reply</li>
               <li className="flex items-center gap-2"><CheckCircle2 className="w-5 h-5 text-green-600" /> Lead capture</li>
             </ul>
-            <Link to="/dashboard" className="block w-full py-3 text-center border-2 border-gray-300 rounded-lg hover:border-gray-400 transition-colors">
+            <Link to="/signup" className="block w-full py-3 text-center border-2 border-gray-300 rounded-lg hover:border-gray-400 transition-colors">
               Start Free Trial
             </Link>
           </div>
@@ -163,7 +163,7 @@ export function LandingPage() {
               <li className="flex items-center gap-2"><CheckCircle2 className="w-5 h-5" /> Analytics dashboard</li>
               <li className="flex items-center gap-2"><CheckCircle2 className="w-5 h-5" /> Priority support</li>
             </ul>
-            <Link to="/dashboard" className="block w-full py-3 text-center bg-white text-purple-600 rounded-lg hover:shadow-xl transition-shadow">
+            <Link to="/signup" className="block w-full py-3 text-center bg-white text-purple-600 rounded-lg hover:shadow-xl transition-shadow">
               Start Free Trial
             </Link>
           </div>
