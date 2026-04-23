@@ -14,7 +14,7 @@ This frontend now uses a real external API over HTTP for all runtime data operat
 ## Prerequisites
 
 - Node.js 20+
-- npm 10+
+- Yarn 1.22+
 - External API server running (see integration guide)
 
 ## Setup
@@ -22,7 +22,7 @@ This frontend now uses a real external API over HTTP for all runtime data operat
 1. Install dependencies:
 
 ```bash
-npm install
+yarn install
 ```
 
 2. Create a local environment file:
@@ -42,13 +42,13 @@ VITE_API_TOKEN_STORAGE_KEY=saas.auth.token
 ## Run
 
 ```bash
-npm run dev
+yarn dev
 ```
 
 ## Test
 
 ```bash
-npm run test
+yarn test
 ```
 
 ## Production Build
@@ -56,13 +56,13 @@ npm run test
 Set `VITE_API_URL` to your production API endpoint (HTTPS recommended), then build:
 
 ```bash
-npm run build
+yarn build
 ```
 
 Example:
 
 ```bash
-VITE_API_URL=https://api.your-domain.com/api npm run build
+VITE_API_URL=https://api.your-domain.com/api yarn build
 ```
 
 ## Endpoint Summary

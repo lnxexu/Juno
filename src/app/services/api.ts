@@ -7,6 +7,19 @@ export interface User {
   createdAt: string;
 }
 
+export interface SignupPayload {
+  email: string;
+  password: string;
+  name: string;
+  companyName: string;
+  plan?: User['plan'];
+}
+
+interface AuthResponse {
+  token: string;
+  user: User;
+}
+
 export interface Conversation {
   id: number;
   customerId: string;
@@ -61,7 +74,7 @@ interface ApiErrorPayload {
   details?: unknown;
 }
 
-const DEFAULT_API_BASE_URL = 'http://localhost:3100/api';
+const DEFAULT_API_BASE_URL = 'http://localhost:3100/';
 const DEFAULT_TIMEOUT_MS = 15000;
 
 const normalizeApiBaseUrl = (rawUrl: string | undefined) => {
@@ -84,6 +97,22 @@ const getStoredAuthToken = () => {
   } catch {
     return null;
   }
+};
+
+export const setStoredAuthToken = (token: string) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  localStorage.setItem(API_TOKEN_STORAGE_KEY, token);
+};
+
+export const clearStoredAuthToken = () => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  localStorage.removeItem(API_TOKEN_STORAGE_KEY);
 };
 
 const toErrorMessage = (error: unknown) => {
@@ -228,6 +257,14 @@ const requestBlob = async (endpoint: string, options: ApiRequestOptions = {}) =>
 
 export const api = {
   auth: {
+    signup: async (payload: SignupPayload) => {
+      const response = await request<AuthResponse>('/auth/signup', {
+        method: 'POST',
+        body: payload,
+      });
+      setStoredAuthToken(response.token);
+      return response.user;
+    },
     getCurrentUser: () => request<User>('/auth/me'),
     updateProfile: (data: Partial<User>) => request<User>('/auth/profile', { method: 'PATCH', body: data }),
   },

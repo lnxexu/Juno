@@ -39,11 +39,45 @@ describe('useAuthStore', () => {
     expect(state.isLoading).toBe(false);
   });
 
+  it('creates an account with signup', async () => {
+    vi.spyOn(api.auth, 'signup').mockResolvedValueOnce(mockUser);
+
+    await useAuthStore.getState().signup({
+      email: 'owner@example.com',
+      password: 'SecurePass123!',
+      name: 'Business Owner',
+      companyName: 'Acme Co',
+    });
+
+    const state = useAuthStore.getState();
+    expect(state.user).toEqual(mockUser);
+    expect(state.error).toBeNull();
+    expect(state.isLoading).toBe(false);
+  });
+
+  it('stores an error when signup fails', async () => {
+    vi.spyOn(api.auth, 'signup').mockRejectedValueOnce(new Error('Email already in use.'));
+
+    await expect(useAuthStore.getState().signup({
+      email: 'owner@example.com',
+      password: 'SecurePass123!',
+      name: 'Business Owner',
+      companyName: 'Acme Co',
+    })).rejects.toThrow('Email already in use.');
+
+    const state = useAuthStore.getState();
+    expect(state.user).toBeNull();
+    expect(state.error).toBe('Email already in use.');
+    expect(state.isLoading).toBe(false);
+  });
+
   it('clears the user on logout', () => {
+    const removeItemSpy = vi.spyOn(Storage.prototype, 'removeItem');
     useAuthStore.setState({ user: mockUser });
 
     useAuthStore.getState().logout();
 
+    expect(removeItemSpy).toHaveBeenCalledWith('saas.auth.token');
     expect(useAuthStore.getState().user).toBeNull();
   });
 });
