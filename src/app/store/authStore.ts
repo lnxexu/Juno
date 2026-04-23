@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { api, clearStoredAuthToken, type SignupPayload, User } from '../services/api';
+import { api, clearStoredAuthToken, type LoginPayload, type SignupPayload, User } from '../services/api';
 
 interface AuthState {
   user: User | null;
@@ -8,6 +8,7 @@ interface AuthState {
 
   // Actions
   signup: (data: SignupPayload) => Promise<void>;
+  login: (data: LoginPayload) => Promise<void>;
   fetchUser: () => Promise<void>;
   updateProfile: (data: Partial<User>) => Promise<void>;
   logout: () => void;
@@ -22,6 +23,17 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true, error: null });
     try {
       const user = await api.auth.signup(data);
+      set({ user, isLoading: false });
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+      throw error;
+    }
+  },
+
+  login: async (data) => {
+    set({ isLoading: true, error: null });
+    try {
+      const user = await api.auth.login(data);
       set({ user, isLoading: false });
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false });

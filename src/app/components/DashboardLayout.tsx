@@ -1,4 +1,4 @@
-import { Outlet, Link, useLocation } from 'react-router';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router';
 import {
   LayoutDashboard,
   MessageSquare,
@@ -7,13 +7,15 @@ import {
   BarChart3,
   Settings,
   Menu,
-  X
+  X,
+  LogOut,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '../store/authStore';
 
 export function DashboardLayout() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(() => {
     if (typeof navigator === 'undefined') {
@@ -23,6 +25,7 @@ export function DashboardLayout() {
     return navigator.onLine;
   });
   const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -55,6 +58,16 @@ export function DashboardLayout() {
       return location.pathname === '/dashboard';
     }
     return location.pathname.startsWith(href);
+  };
+
+  const handleLogout = () => {
+    const shouldLogout = window.confirm('Are you sure you want to log out?');
+    if (!shouldLogout) {
+      return;
+    }
+
+    logout();
+    navigate('/login');
   };
 
   return (
@@ -153,6 +166,14 @@ export function DashboardLayout() {
               }`} />
               {isOnline ? 'AI Online' : 'AI Offline'}
             </div>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="inline-flex items-center gap-2 rounded-md border border-gray-200 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100"
+            >
+              <LogOut className="h-4 w-4" />
+              Log out
+            </button>
           </div>
         </header>
 
