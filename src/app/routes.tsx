@@ -7,12 +7,17 @@ import { AITrainingPage } from "./pages/AITrainingPage";
 import { LeadsPage } from "./pages/LeadsPage";
 import { AnalyticsPage } from "./pages/AnalyticsPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { SignupPage } from "./pages/SignupPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
 export const router = createBrowserRouter([
   {
     path: "/",
     Component: LandingPage,
+  },
+  {
+    path: "/signup",
+    Component: SignupPage,
   },
   {
     path: "/dashboard",
