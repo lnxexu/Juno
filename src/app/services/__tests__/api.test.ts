@@ -125,6 +125,46 @@ describe('api service integration client', () => {
     })).rejects.toThrow('Invalid email or password.');
   });
 
+  it('submits forgot-password request without leaking account presence', async () => {
+    vi.stubEnv('VITE_API_URL', 'https://api.example.com');
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse({
+      message: 'If an account with that email exists, reset instructions have been sent.',
+    }, { status: 202 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { api } = await importApiModule();
+    const response = await api.auth.forgotPassword({
+      email: 'owner@example.com',
+    });
+
+    expect(response.message).toContain('If an account with that email exists');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.example.com/auth/forgot-password',
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  it('resets password with tokenized endpoint', async () => {
+    vi.stubEnv('VITE_API_URL', 'https://api.example.com');
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse({
+      message: 'Password reset successful.',
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { api } = await importApiModule();
+    const response = await api.auth.resetPassword('token-123', {
+      password: 'NewStrong123!',
+    });
+
+    expect(response.message).toBe('Password reset successful.');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.example.com/auth/reset-password/token-123',
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
   it('normalizes password validation errors from signup endpoint', async () => {
     vi.stubEnv('VITE_API_URL', 'https://api.example.com');
 

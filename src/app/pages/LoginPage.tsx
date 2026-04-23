@@ -107,6 +107,12 @@ export function LoginPage() {
                 {isLoading ? 'Signing in...' : 'Sign in'}
               </Button>
 
+              <p className="text-center text-sm">
+                <Link to="/forgot-password" className="text-primary underline-offset-4 hover:underline">
+                  Forgot password?
+                </Link>
+              </p>
+
               <p className="text-center text-sm text-muted-foreground">
                 New to ReplyAI?{' '}
                 <Link to="/signup" className="text-primary underline-offset-4 hover:underline">

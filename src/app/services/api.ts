@@ -20,6 +20,14 @@ export interface LoginPayload {
   password: string;
 }
 
+export interface ForgotPasswordPayload {
+  email: string;
+}
+
+export interface ResetPasswordPayload {
+  password: string;
+}
+
 interface AuthResponse {
   token: string;
   user: User;
@@ -278,6 +286,17 @@ export const api = {
       setStoredAuthToken(response.token);
       return response.user;
     },
+    forgotPassword: (payload: ForgotPasswordPayload) => request<{ message: string }>('/auth/forgot-password', {
+      method: 'POST',
+      body: payload,
+    }),
+    resetPassword: (token: string, payload: ResetPasswordPayload) => request<{ message: string }>(
+      `/auth/reset-password/${encodeURIComponent(token)}`,
+      {
+        method: 'POST',
+        body: payload,
+      },
+    ),
     getCurrentUser: () => request<User>('/auth/me'),
     updateProfile: (data: Partial<User>) => request<User>('/auth/profile', { method: 'PATCH', body: data }),
   },
