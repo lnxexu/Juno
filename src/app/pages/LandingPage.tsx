@@ -16,6 +16,7 @@ export function LandingPage() {
           <div className="flex items-center gap-6">
             <a href="#features" className="text-sm text-gray-600 hover:text-gray-900">Features</a>
             <a href="#pricing" className="text-sm text-gray-600 hover:text-gray-900">Pricing</a>
+            <Link to="/login" className="text-sm text-gray-600 hover:text-gray-900">Log In</Link>
             <Link to="/signup" className="text-sm text-blue-600 hover:text-blue-700">Sign Up</Link>
             <Link to="/signup" className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg text-sm hover:shadow-lg transition-shadow">
               Start Free Trial

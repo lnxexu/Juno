@@ -15,6 +15,11 @@ export interface SignupPayload {
   plan?: User['plan'];
 }
 
+export interface LoginPayload {
+  email: string;
+  password: string;
+}
+
 interface AuthResponse {
   token: string;
   user: User;
@@ -259,6 +264,14 @@ export const api = {
   auth: {
     signup: async (payload: SignupPayload) => {
       const response = await request<AuthResponse>('/auth/signup', {
+        method: 'POST',
+        body: payload,
+      });
+      setStoredAuthToken(response.token);
+      return response.user;
+    },
+    login: async (payload: LoginPayload) => {
+      const response = await request<AuthResponse>('/auth/login', {
         method: 'POST',
         body: payload,
       });

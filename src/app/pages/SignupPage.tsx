@@ -1,4 +1,4 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Label } from '../components/ui/label';
@@ -19,6 +19,7 @@ const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export function SignupPage() {
   const navigate = useNavigate();
   const signup = useAuthStore((state) => state.signup);
+  const user = useAuthStore((state) => state.user);
   const isLoading = useAuthStore((state) => state.isLoading);
 
   const [email, setEmail] = useState('');
@@ -27,6 +28,12 @@ export function SignupPage() {
   const [companyName, setCompanyName] = useState('');
   const [plan, setPlan] = useState<'starter' | 'professional' | 'enterprise'>('starter');
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [navigate, user]);
 
   const validateForm = () => {
     if (!email.trim() || !password || !name.trim() || !companyName.trim()) {
@@ -63,7 +70,7 @@ export function SignupPage() {
         companyName: companyName.trim(),
         plan,
       });
-      navigate('/dashboard', { replace: true });
+      navigate('/dashboard');
     } catch (error) {
       const message = (error as Error).message;
       if (message.toLowerCase().includes('email already in use')) {
@@ -164,8 +171,8 @@ export function SignupPage() {
 
               <p className="text-center text-sm text-muted-foreground">
                 Already have an account?{' '}
-                <Link to="/" className="text-primary underline-offset-4 hover:underline">
-                  Go back
+                <Link to="/login" className="text-primary underline-offset-4 hover:underline">
+                  Sign in
                 </Link>
               </p>
             </form>
