@@ -79,6 +79,52 @@ describe('api service integration client', () => {
     })).rejects.toThrow('Email already in use.');
   });
 
+  it('logs in with valid credentials, stores JWT, and returns user', async () => {
+    vi.stubEnv('VITE_API_URL', 'https://api.example.com');
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse({
+      token: 'jwt-login-token-456',
+      user: {
+        id: '1',
+        email: 'owner@example.com',
+        name: 'Business Owner',
+        companyName: 'Acme Co',
+        plan: 'professional',
+        createdAt: '2026-04-21T00:00:00.000Z',
+      },
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { api } = await importApiModule();
+    const user = await api.auth.login({
+      email: 'owner@example.com',
+      password: 'StrongPass123!',
+    });
+
+    expect(user.email).toBe('owner@example.com');
+    expect(localStorage.getItem('saas.auth.token')).toBe('jwt-login-token-456');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.example.com/auth/login',
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  it('returns clear invalid-credentials errors for login', async () => {
+    vi.stubEnv('VITE_API_URL', 'https://api.example.com');
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse(
+      { message: 'Invalid email or password.', code: 'INVALID_CREDENTIALS' },
+      { status: 401 },
+    ));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { api } = await importApiModule();
+    await expect(api.auth.login({
+      email: 'owner@example.com',
+      password: 'WrongPass123!',
+    })).rejects.toThrow('Invalid email or password.');
+  });
+
   it('normalizes password validation errors from signup endpoint', async () => {
     vi.stubEnv('VITE_API_URL', 'https://api.example.com');
 
@@ -148,7 +194,7 @@ describe('api service integration client', () => {
     await api.conversations.getAll();
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://localhost:3100/api/conversations',
+      'http://localhost:3100/conversations',
       expect.any(Object),
     );
   });

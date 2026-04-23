@@ -55,6 +55,34 @@ describe('useAuthStore', () => {
     expect(state.isLoading).toBe(false);
   });
 
+  it('logs in with valid credentials', async () => {
+    vi.spyOn(api.auth, 'login').mockResolvedValueOnce(mockUser);
+
+    await useAuthStore.getState().login({
+      email: 'owner@example.com',
+      password: 'SecurePass123!',
+    });
+
+    const state = useAuthStore.getState();
+    expect(state.user).toEqual(mockUser);
+    expect(state.error).toBeNull();
+    expect(state.isLoading).toBe(false);
+  });
+
+  it('stores an error when login fails', async () => {
+    vi.spyOn(api.auth, 'login').mockRejectedValueOnce(new Error('Invalid email or password.'));
+
+    await expect(useAuthStore.getState().login({
+      email: 'owner@example.com',
+      password: 'WrongPass123!',
+    })).rejects.toThrow('Invalid email or password.');
+
+    const state = useAuthStore.getState();
+    expect(state.user).toBeNull();
+    expect(state.error).toBe('Invalid email or password.');
+    expect(state.isLoading).toBe(false);
+  });
+
   it('stores an error when signup fails', async () => {
     vi.spyOn(api.auth, 'signup').mockRejectedValueOnce(new Error('Email already in use.'));
 

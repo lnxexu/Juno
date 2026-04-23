@@ -15,7 +15,7 @@ const mockSignedUpUser: User = {
   createdAt: '2026-04-21T00:00:00.000Z',
 };
 
-const renderSignupRoute = () => {
+const renderSignupRoute = (initialEntries = ['/signup']) => {
   const router = createMemoryRouter([
     {
       path: '/signup',
@@ -26,7 +26,7 @@ const renderSignupRoute = () => {
       element: <div>Dashboard Home</div>,
     },
   ], {
-    initialEntries: ['/signup'],
+    initialEntries,
   });
 
   render(<RouterProvider router={router} />);
@@ -95,5 +95,13 @@ describe('SignupPage', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Password requirement not met: One uppercase letter.');
     expect(signupSpy).not.toHaveBeenCalled();
+  });
+
+  it('redirects authenticated users away from signup page', async () => {
+    useAuthStore.setState({ user: mockSignedUpUser });
+
+    renderSignupRoute();
+
+    expect(await screen.findByText('Dashboard Home')).toBeInTheDocument();
   });
 });

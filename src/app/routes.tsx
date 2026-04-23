@@ -8,12 +8,17 @@ import { LeadsPage } from "./pages/LeadsPage";
 import { AnalyticsPage } from "./pages/AnalyticsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { SignupPage } from "./pages/SignupPage";
+import { LoginPage } from "./pages/LoginPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
 export const router = createBrowserRouter([
   {
     path: "/",
     Component: LandingPage,
+  },
+  {
+    path: "/login",
+    Component: LoginPage,
   },
   {
     path: "/signup",
